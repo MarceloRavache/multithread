@@ -3,131 +3,162 @@
 #include <string.h>
 #include <pthread.h>
 
-float *matrizA;
-float *matrizB;
-float *matrizC;
-int tamanho,process,tam1,tam2;
-char *mtA,*mtB,*mtC;
+//variaveis globais para ter acesso nas threads
+float **matriz1,*matriz2,**matriz3;
 
-void *tr(void *pr);
+int tamanho,process;
 
-float* cm(int tam){
+void *paralelo(void *pr);
+
+//função para criar em ponteiros allocados as matrizes dinamicamente
+float* criarmatriz(int tamanhoM){
 	int i;
-	int aux = tam*tam;
-	float *matriz = (float *)malloc(aux*sizeof(float));
+	float *matriz = (float **)malloc(tamanhoM*sizeof(float*));
+	for(i=0;i<tamanhoM;i++){
+		matriz[i]= (float *)malloc(tamanhoM*sizeof(float);
+	}
 	return matriz;
 }
+					   
 int main(int argc, char *argv[]){
-	char cp[10],buffer[10000],ch,bf[10];
+	
+	char cpuinfo[10],buffer[10000],caracter,bf[10];
+	
 	system("grep -c processor /proc/cpuinfo > cpu.txt");
 	FILE *cpu = fopen("cpu.txt","r");
-	fgets(cp,sizeof(cp),cpu);
-	process = atoi(cp);
-	process *= 2;
-	char c[100];
-	mtA=argv[1];
-	mtB=argv[2];
-	mtC=argv[3];
-	register int i=0,j=0;
-
-	FILE *arq1 = fopen(mtA,"r");
-	fgets(buffer,sizeof(buffer),arq1);
-	tam1 = atoi(buffer);
 	
-	FILE *arq2 = fopen(mtA,"r");
-	fgets(buffer,sizeof(buffer),arq2);
-	tam2 = atoi(buffer);
-	if(tam1 != tam2){
+	fgets(cpuinfo,sizeof(cpuinfo),cpu);
+	
+	processos = atoi(cp);
+	
+	char c[100];
+	//argumento 1
+	char matrizA=argv[1];
+	//argumento 2
+	char matrizB=argv[2];
+	//argumento 3
+	char matrizC=argv[3];
+	
+	int i=0,j=0;
+
+	//abrir arquivo do argumento 1
+	FILE *arquivo1 = fopen(matrizA,"r");
+	//pega a primeira linha do arquivo que tem o tamanho da matriz
+	fgets(buffer,sizeof(buffer),arquivo1);
+	//converte a String em inteiro
+	tamanho1 = atoi(buffer);
+	
+	FILE *arquivo2 = fopen(matrizA,"r");
+	fgets(buffer,sizeof(buffer),arquivo2);
+	tamanho2 = atoi(buffer);
+	
+	//verifica se as duas tem a mesma proporção
+	if(tamanho1 != tamanho2){
 		printf("\nAs duas matrizes nÃ£o sÃ£o do mesmo tamanho\n");
 	}else{
-
-	matrizA = cm(tam1);
+	tamanho = tamanho1;//armazena o tamanho
+		
+	//armazena uma matriz dinamicamente alocada no ponteiro global
+	matriz1 = cm(tamanho1);
+	//zera o buffer de String
 	strcpy(buffer,"");
 	
-	while((ch=fgetc(arq1)) != EOF){
- 		if(ch == ':'){
- 			matrizA[i] = atof(buffer);
+	while((caractere=fgetc(arquivo1)) != EOF){//enquanto ele não encontrar o final do arquivo, ele vai pegando o primeiro caractere
+ 		if(caractere == ':'){// verifica se o caractere é igual ao ':' assim ele vai saber que chegou no final do numero
+			
+ 			matriz1[i][j] = atof(buffer);//converte o buffer string(que contem o valor a ser armazenado em float), armazena o valor convertido na posição dele
+			
+ 			strcpy(buffer,"");//zera o buffer
+			
+ 			j++;//passa para a proxima coluna daquela linha
+			
+ 		}else if(caractere == '\n'){//verifica se o caractere é igual a \n(final da linha)
+ 			matriz1[i][j] = atof(buffer);
  			strcpy(buffer,"");
- 			i++;
- 		}else if(ch == '\n'){
- 			matrizA[i] = atof(buffer);
- 			strcpy(buffer,"");
- 			i++;
+ 			i++;//passa para a porxima linha
+			j=0;//e recomeça a coluna
  		}else{
- 			bf[0]=ch;
- 			strcat(buffer,bf);
+ 			bf[0]=caractere;//guarda o caractere em um mini buffer
+ 			strcat(buffer,bf);//junta o caractere no buffer que tinha antes
  		}
  	}
 	
-	strcpy(buffer,"");
-	matrizB = cm(tam2);
+	strcpy(buffer,"");//zera o buffer
+		
+	matriz2 = cm(tamanho2);
 
 	i=0;
-	while((ch=fgetc(arq2)) != EOF){
+	j=0;
+	while((caractere=fgetc(arquivo2)) != EOF){
  		if(ch == ':'){
- 			matrizB[i] = atof(buffer);
+ 			matriz2[i][j] = atof(buffer);
+ 			strcpy(buffer,"");
+ 			j++;
+ 		}else if(caractere == '\n'){
+ 			matriz2[i][j] = atof(buffer);
  			strcpy(buffer,"");
  			i++;
- 		}else if(ch == '\n'){
- 			matrizB[i] = atof(buffer);
- 			strcpy(buffer,"");
- 			i++;
+			j=0;
  		}else{
- 			bf[0]=ch;
+ 			bf[0]=caractere;
  			strcat(buffer,bf);
  		}
  	}
 
-	fclose(arq1);
-	fclose(arq2);
+	//fecha os dois arquivos
+	fclose(arquivo1);
+	fclose(arquivo2);
 	
-	matrizC = cm(tam1);
+	matriz3 = cm(tamanho1);
+	
+	//cria os identificadores das threads de acordo com o que tem em process que é o tanto de cores que o processador tem
+	pthread_t tid[processos];
+	//armazena o tamanho da matriz em uma variavel global
+	tamanho = tamanho1;
+	
+	for(i=0;i<process;i++){//cria as threads
 
-	pthread_t tid[process];
-
-	tamanho = tam1;
-	for(i=0;i<process;i++){
-
-		pthread_create(&(tid[i]), NULL, tr, i);
+		pthread_create(&(tid[i]), NULL, tr, i);//passando o valor que esta em i(que é o idenficador das partes)
 
 	}
 	for(i=0;i<process;i++){
-		pthread_join(tid[i], NULL);
+		pthread_join(tid[i], NULL);//faz com que o processo principal espere as threads terminarem
 	}
 	
-	FILE *arq3 = fopen(mtC,"w+");
-	fprintf(arq3, "%d\n",tam1);
+	FILE *arquivo3 = fopen(matrizC,"w+");
+	
+	fprintf(arquivo3, "%d\n",tamanho1);//escreve o tamanho da matriz e pula a linha no arquivo
 
-	for (int i = 0; i < tam1; i++) {
-		for (int j = 0; j < tam1; j++) {
-			if (j < tam1 - 1)fprintf(arq3, "%.1f:", matrizC[(i*tam1)+j]);
-	 else fprintf(arq3, "%.1f", matrizC[(i*tam1)+j]);
+	for (int i = 0; i < tamanho1; i++) {
+		for (int j = 0; j < tamanho1; j++) {
+			if (j < tam1 - 1)fprintf(arq3, "%.1f:", matrizC[i][j]);//ele escreve no arquivo os valores colocando o ':' no final ate encontrar a penultima posição da coluna
+	 else fprintf(arquivo3, "%.1f", matrizC[i][j]);//ele escreve o ultimo valor na ultima posição
 	}
-	fprintf(arq3, "\n");
+	fprintf(arquivo3, "\n");//ele escreve a quebra de linha
 	}
-	fclose(arq3);
+	fclose(arq3uivo);
 	}
 	printf("\nFinal\n");
 }
 
 
-void *tr(void *pr){
+void *paralelo(void *id){
 
-	int t = (int ) pr;
-	register float acumulador;
+	
+	float acumulador;
+	int identificador = (int) id;
 
-	register int i,j,k,aux;
-	register int tam = tamanho/process;
-	register int tm = tamanho;
-	aux = t * tam;
+	int i,j,k,auxiliar;
+	int tamanhoParte = tamanho/processos;
+	auxiliar = identificador * tamanhoParte;
 
-	for(i=0+aux;i<tam+aux;i++){
-		for(j=0;j<tm;j++){
+	for(i=0+auxiliar;i<tamanhoParte+auxiliar;i++){
+		for(j=0;j<tamanho;j++){
 			acumulador = 0;
 			for(k=0;k<tm;k++){
-				acumulador = acumulador + ( matrizA[(i*tm)+k] * matrizB[(k*tm)+j] );
+				acumulador = acumulador + ( matrizA[i][k] * matrizB[k][j] );
 			}
-			matrizC[(i*tm)+j] = acumulador;
+			matrizC[i][j] = acumulador;
 		}
 	}
 }
